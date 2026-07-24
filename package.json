@@ -1,0 +1,66 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "herdr",
+  "title": "Herdr",
+  "description": "Browse and control Herdr agent sessions",
+  "icon": "extension-icon.png",
+  "author": "terkel",
+  "categories": ["Developer Tools"],
+  "license": "MIT",
+  "platforms": ["macOS"],
+  "commands": [
+    {
+      "name": "agents",
+      "title": "Manage Agents",
+      "description": "Search, prompt, and control Herdr agents",
+      "mode": "view"
+    },
+    {
+      "name": "dashboard",
+      "title": "Dashboard",
+      "description": "Browse Herdr workspaces, tabs, and panes",
+      "mode": "view"
+    },
+    {
+      "name": "attention",
+      "title": "Focus Attention Agent",
+      "description": "Jump to the agent that needs you, blocked first, then done",
+      "mode": "no-view"
+    },
+    {
+      "name": "status",
+      "title": "Agent Status",
+      "description": "Blocked and finished Herdr agents in the menu bar, with notifications",
+      "mode": "menu-bar",
+      "interval": "1m"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "terminal",
+      "type": "appPicker",
+      "required": false,
+      "title": "Terminal App",
+      "description": "Overrides the detected terminal when opening an agent"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.23",
+    "@raycast/utils": "^1.17.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.19.17",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "build": "ray build",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
