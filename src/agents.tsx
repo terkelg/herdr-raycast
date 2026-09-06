@@ -23,10 +23,11 @@ import { useState } from "react";
 import { Offline, close, explain, focus, manifests, miss, prompt, read, rename, start, target } from "./client";
 import type { Server, Snapshot } from "./client";
 import { usePoll, useSnaps } from "./hooks";
+import { body } from "./output";
 import { activate } from "./terminal";
 import { badge, flat, logo, name, status, tokens } from "./ui";
 import type { Entry } from "./ui";
-import type { Agent, Read, Status } from "./types";
+import type { Agent, Status } from "./types";
 
 const URGENCY: Record<Status, number> = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 4 };
 
@@ -234,7 +235,7 @@ function OutputDetail({ entry }: { entry: Entry }) {
   const count = tokens(agent);
   const { isLoading, data, error, revalidate } = usePoll(
     () => (pane ? read(server, pane, 100) : Promise.resolve(undefined)),
-    2000,
+    3000,
     [server.path, pane || ""],
   );
   return (
@@ -264,22 +265,6 @@ function OutputDetail({ entry }: { entry: Entry }) {
       }
     />
   );
-}
-
-function body(pane: string | undefined, data: Read | undefined, error: Error | undefined): string {
-  if (!pane) return "This agent has no pane to read.";
-  if (error instanceof Offline) return "Herdr isn't running.";
-  if (error) return "No output available. The pane isn't live right now.";
-  const text = (data?.text || "").trimEnd();
-  return text ? fence(text) : "No output yet.";
-}
-
-/** Wraps text in a fenced code block whose fence outruns any backtick run inside. */
-function fence(text: string): string {
-  const runs = text.match(/`+/g) || [];
-  const longest = runs.reduce((n, run) => Math.max(n, run.length), 0);
-  const ticks = "`".repeat(Math.max(4, longest + 1));
-  return `${ticks}text\n${text}\n${ticks}`;
 }
 
 const HISTORY = "history";

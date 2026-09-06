@@ -3,6 +3,7 @@ import {
   ActionPanel,
   Alert,
   Color,
+  Detail,
   Form,
   Icon,
   Keyboard,
@@ -15,11 +16,12 @@ import {
   useNavigation,
 } from "@raycast/api";
 import type { Image } from "@raycast/api";
-import { showFailureToast, useForm } from "@raycast/utils";
+import { showFailureToast, useCachedState, useForm } from "@raycast/utils";
 import { useState } from "react";
 
-import { close, focus, relabel, reveal } from "./client";
-import { useSnaps } from "./hooks";
+import { close, focus, read, relabel, reveal } from "./client";
+import { usePoll, useSnaps } from "./hooks";
+import { body } from "./output";
 import { activate } from "./terminal";
 import { key, prune, tree } from "./tree";
 import type { Branch } from "./tree";
@@ -46,8 +48,16 @@ const WARNINGS: Record<Kind, string> = {
   pane: "Whatever runs inside it will be terminated.",
 };
 
+function usePreview() {
+  const [visible, setVisible] = useCachedState("output-preview", false);
+  return { visible, toggle: () => setVisible((value) => !value) };
+}
+
+type Preview = ReturnType<typeof usePreview>;
+
 export default function Command() {
   const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
+  const preview = usePreview();
   const [show, setShow] = useState("all");
   const [query, setQuery] = useState("");
   const branches = prune(tree(snaps), query, show);
@@ -56,6 +66,12 @@ export default function Command() {
   return (
     <List
       isLoading={isLoading}
+      isShowingDetail={preview.visible}
+      actions={
+        <ActionPanel>
+          <Toggle preview={preview} />
+        </ActionPanel>
+      }
       filtering={false}
       searchText={query}
       onSearchTextChange={setQuery}
@@ -87,7 +103,14 @@ export default function Command() {
         />
       ) : branches.length ? (
         branches.map((branch) => (
-          <Block key={key(branch)} branch={branch} searching={searching} show={show} revalidate={revalidate} />
+          <Block
+            key={key(branch)}
+            branch={branch}
+            searching={searching}
+            show={show}
+            preview={preview}
+            revalidate={revalidate}
+          />
         ))
       ) : (
         <List.EmptyView
@@ -105,14 +128,17 @@ function Block({
   branch,
   searching,
   show,
+  preview,
   revalidate,
 }: {
   branch: Branch;
   searching: boolean;
   show: string;
+  preview: Preview;
   revalidate: () => void;
 }) {
-  if (show === "workspaces" || !branch.children.length) return <Item branch={branch} revalidate={revalidate} />;
+  if (show === "workspaces" || !branch.children.length)
+    return <Item branch={branch} preview={preview} revalidate={revalidate} />;
 
   const session = branch.server.session === "default" ? "" : branch.server.session;
   const title = [branch.label, session].filter(Boolean).join(" · ");
@@ -120,7 +146,7 @@ function Block({
     return (
       <List.Section title={title} subtitle={tally(branch.count)}>
         {branch.children.map((tab) => (
-          <Item key={key(tab)} branch={tab} revalidate={revalidate} />
+          <Item key={key(tab)} branch={tab} preview={preview} revalidate={revalidate} />
         ))}
       </List.Section>
     );
@@ -134,9 +160,9 @@ function Block({
           subtitle={[!branch.inline && tab.label, tally(tab.children.length)].filter(Boolean).join(" · ")}
         >
           {tab.children.length ? (
-            tab.children.map((pane) => <Item key={key(pane)} branch={pane} revalidate={revalidate} />)
+            tab.children.map((pane) => <Item key={key(pane)} branch={pane} preview={preview} revalidate={revalidate} />)
           ) : (
-            <Item branch={tab} revalidate={revalidate} />
+            <Item branch={tab} preview={preview} revalidate={revalidate} />
           )}
         </List.Section>
       ))}
@@ -147,6 +173,7 @@ function Block({
 /** Raycast's navigation stack provides the next level of the hierarchy. */
 function Browse({ branch }: { branch: Branch }) {
   const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
+  const preview = usePreview();
   const workspaces = tree(empty ? [] : snaps);
   const candidates = branch.kind === "workspace" ? workspaces : workspaces.flatMap((space) => space.children);
   const current = candidates.find((item) => key(item) === key(branch));
@@ -155,6 +182,12 @@ function Browse({ branch }: { branch: Branch }) {
     <List
       navigationTitle={branch.label}
       isLoading={isLoading}
+      isShowingDetail={preview.visible}
+      actions={
+        <ActionPanel>
+          <Toggle preview={preview} />
+        </ActionPanel>
+      }
       searchBarPlaceholder="Search panes…"
       filtering={{ keepSectionOrder: true }}
     >
@@ -162,7 +195,7 @@ function Browse({ branch }: { branch: Branch }) {
       {tabs.map((tab) => (
         <List.Section key={key(tab)} title={tab.label} subtitle={tally(tab.count)}>
           {tab.children.map((pane) => (
-            <Item key={key(pane)} branch={pane} revalidate={revalidate} />
+            <Item key={key(pane)} branch={pane} preview={preview} revalidate={revalidate} />
           ))}
         </List.Section>
       ))}
@@ -174,7 +207,7 @@ function tally(count = 0): string {
   return `${count} pane${count === 1 ? "" : "s"}`;
 }
 
-function Item({ branch, revalidate }: { branch: Branch; revalidate: () => void }) {
+function Item({ branch, preview, revalidate }: { branch: Branch; preview: Preview; revalidate: () => void }) {
   const { kind, label, count, state, agent, focused, server } = branch;
   const noun = agent ? "Agent" : NOUNS[kind];
   const value = status({ agent_status: state });
@@ -196,15 +229,95 @@ function Item({ branch, revalidate }: { branch: Branch; revalidate: () => void }
       id={key(branch)}
       icon={agent ? { value: marker, tooltip: value } : ICONS[kind]}
       title={label}
-      subtitle={kind === "workspace" && server.session !== "default" ? server.session : undefined}
-      accessories={accessories}
+      subtitle={!preview.visible && kind === "workspace" && server.session !== "default" ? server.session : undefined}
+      accessories={preview.visible ? [] : accessories}
       keywords={branch.keywords}
-      actions={<Panel row={{ ...branch, noun }} revalidate={revalidate} />}
+      detail={preview.visible ? <Metadata branch={branch} /> : undefined}
+      actions={<Panel row={{ ...branch, noun }} preview={preview} revalidate={revalidate} />}
     />
   );
 }
 
-function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
+function Metadata({ branch }: { branch: Branch }) {
+  const { server, kind, state, agent, title, label, cwd, workspace, tab, tabs, count, focused } = branch;
+  const value = status({ agent_status: state });
+  const color = value === "idle" ? Color.Green : badge(value).tintColor;
+  const rows: [string, string | undefined][] = [
+    ["Type", agent?.agent || (kind === "pane" ? "Shell" : NOUNS[kind])],
+    ["Title", title !== label ? title : undefined],
+    ["Workspace", workspace],
+    ["Tab", tab],
+    ["Directory", cwd],
+    ["Tabs", tabs?.toString()],
+    ["Panes", kind !== "pane" ? String(count ?? 0) : undefined],
+    ["Focus", focused ? "Focused in Herdr" : undefined],
+    ["Session", server.session !== "default" ? server.session : undefined],
+  ];
+  const fields = Object.entries(branch.tokens || {}).filter(([, text]) => !!text);
+  return (
+    <List.Item.Detail
+      metadata={
+        <List.Item.Detail.Metadata>
+          {value !== "unknown" && (agent || kind !== "pane") && (
+            <List.Item.Detail.Metadata.TagList title="Status">
+              <List.Item.Detail.Metadata.TagList.Item text={value[0].toUpperCase() + value.slice(1)} color={color} />
+            </List.Item.Detail.Metadata.TagList>
+          )}
+          {rows.map(
+            ([title, text]) => text && <List.Item.Detail.Metadata.Label key={title} title={title} text={text} />,
+          )}
+          {!!fields.length && <List.Item.Detail.Metadata.Separator />}
+          {fields.map(([key, text]) => {
+            const label = key.replace(/[_-]/g, " ");
+            return (
+              <List.Item.Detail.Metadata.Label
+                key={key}
+                title={label.charAt(0).toUpperCase() + label.slice(1)}
+                text={text}
+              />
+            );
+          })}
+        </List.Item.Detail.Metadata>
+      }
+    />
+  );
+}
+
+function Output({ branch }: { branch: Branch }) {
+  const { server, id, label } = branch;
+  const { data, error, isLoading, revalidate } = usePoll(() => read(server, id, 100), 3000, [server.path, id]);
+  return (
+    <Detail
+      navigationTitle={label}
+      isLoading={isLoading}
+      markdown={isLoading && !data && !error ? undefined : body(id, data, error)}
+      actions={
+        <ActionPanel>
+          {!error && !!data?.text && <Action.CopyToClipboard title="Copy Output" content={data.text} />}
+          <Action
+            title="Refresh"
+            icon={Icon.ArrowClockwise}
+            shortcut={Keyboard.Shortcut.Common.Refresh}
+            onAction={revalidate}
+          />
+        </ActionPanel>
+      }
+    />
+  );
+}
+
+function Toggle({ preview }: { preview: Preview }) {
+  return (
+    <Action
+      title={preview.visible ? "Hide Details" : "Show Details"}
+      icon={Icon.AppWindowSidebarRight}
+      shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
+      onAction={preview.toggle}
+    />
+  );
+}
+
+function Panel({ row, preview, revalidate }: { row: Row; preview: Preview; revalidate: () => void }) {
   const { server, kind, noun, id, label } = row;
   const full = noun !== "Agent";
 
@@ -246,6 +359,21 @@ function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
         shortcut={{ modifiers: ["cmd"], key: "return" }}
         onAction={act}
       />
+      <Toggle preview={preview} />
+      {kind === "pane" && (
+        <Action.Push
+          title="Show Output"
+          icon={Icon.Terminal}
+          shortcut={Keyboard.Shortcut.Common.Open}
+          target={<Output branch={row} />}
+        />
+      )}
+      {row.cwd && (
+        <ActionPanel.Section>
+          <Action.ShowInFinder path={row.cwd} />
+          <Action.CopyToClipboard title="Copy Directory" content={row.cwd} />
+        </ActionPanel.Section>
+      )}
       {full && (
         <Action.Push
           title={`Rename ${noun}`}

@@ -12,6 +12,8 @@ import type { Snapshot } from "./client";
  * whenever one call site renders for different targets; instances would
  * otherwise share a slot and bleed each other's cached data. Errors are left
  * entirely to callers instead of the library's per-failure toast.
+ * Keep `ms` above the client's socket timeout; revalidation discards earlier
+ * requests, so faster polling can prevent timeout errors from reaching the UI.
  */
 export function usePoll<T>(fn: () => Promise<T>, ms: number, keys: string[] = []) {
   const state = useCachedPromise(

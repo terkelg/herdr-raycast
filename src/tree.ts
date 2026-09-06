@@ -11,6 +11,12 @@ export interface Branch {
   count?: number;
   inline?: boolean;
   agent?: Agent;
+  cwd?: string;
+  title?: string;
+  workspace?: string;
+  tab?: string;
+  tabs?: number;
+  tokens?: Record<string, string>;
   keywords: string[];
   children: Branch[];
 }
@@ -46,6 +52,11 @@ export function tree(snaps: Snapshot[]): Branch[] {
                 state,
                 focused: pane.focused ?? agent?.focused,
                 agent,
+                cwd: pane.foreground_cwd || pane.cwd || agent?.foreground_cwd || agent?.cwd,
+                title: pane.title || agent?.title || pane.terminal_title_stripped || agent?.terminal_title_stripped,
+                workspace: space.label || space.workspace_id,
+                tab: tab.label || tab.tab_id,
+                tokens: { ...pane.tokens, ...agent?.tokens },
                 keywords: [
                   ...words,
                   label,
@@ -69,6 +80,7 @@ export function tree(snaps: Snapshot[]): Branch[] {
             label,
             state: tab.agent_status,
             focused: tab.focused,
+            workspace: space.label || space.workspace_id,
             count: tab.pane_count ?? children.length,
             keywords: words,
             children,
@@ -82,6 +94,8 @@ export function tree(snaps: Snapshot[]): Branch[] {
         state: space.agent_status,
         focused: space.focused,
         count: space.pane_count ?? children.reduce((count, tab) => count + (tab.count || 0), 0),
+        tabs: space.tab_count ?? children.length,
+        tokens: space.tokens,
         inline: children.length === 1,
         keywords,
         children,

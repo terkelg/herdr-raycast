@@ -31,6 +31,7 @@ export interface Agent {
   foreground_cwd?: string;
   name?: string;
   title?: string;
+  terminal_title_stripped?: string;
   display_agent?: string;
   tokens?: Record<string, string>;
 }
@@ -42,6 +43,7 @@ export interface Workspace {
   pane_count?: number;
   tab_count?: number;
   agent_status?: string;
+  tokens?: Record<string, string>;
 }
 
 export interface Tab {
@@ -56,6 +58,8 @@ export interface Tab {
 export interface Pane {
   pane_id?: string;
   label?: string;
+  title?: string;
+  terminal_title_stripped?: string;
   display_agent?: string;
   workspace_id?: string;
   tab_id?: string;
@@ -64,6 +68,7 @@ export interface Pane {
   foreground_cwd?: string;
   agent?: string;
   agent_status?: string;
+  tokens?: Record<string, string>;
 }
 
 export interface Manifest {

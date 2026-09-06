@@ -29,7 +29,8 @@
       "name": "attention",
       "title": "Focus Attention Agent",
       "description": "Jump to the agent that needs you, blocked first, then done",
-      "mode": "no-view"
+      "mode": "no-view",
+      "interval": "1m"
     },
     {
       "name": "status",
