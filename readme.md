@@ -4,22 +4,27 @@
 
 ![Herdr Dashboard showing workspaces, panes, and agent status](media/dashboard.png)
 
-Requires macOS, Raycast 2.2 or newer, and [Herdr](https://herdr.dev) 0.7.5 or newer.
-
 ## Setup
 
-Start Herdr in a terminal, then open **Dashboard** or **Manage Agents** in Raycast. Keep Herdr running; the extension finds default and named local sessions automatically.
+Start Herdr in a terminal, then open **Dashboard** in Raycast. Local sessions are detected automatically.
 
-Set **Terminal App** in the extension preferences only if you want to override automatic terminal detection.
+Use **Terminal App** in preferences to override terminal detection.
 
 ## Usage
 
-- **Manage Agents** searches, focuses, prompts, inspects, renames, starts, and closes agents.
-- **Dashboard** groups tabs and panes into workspace sections. Open a tab to browse its panes; single-tab workspaces show their panes directly. Search or filter by state to find panes across workspaces. Press Enter to open a group or focus a pane, or ⌘↵ to focus any item in Herdr. Toggle native details with ⌘⇧D to see status, location, group counts, and any extra metadata reported by Herdr; Raycast remembers your choice. Use **Show Output** (⌘O) for full-width live output, or show the directory in Finder and copy its path. Rename and close non-agent items from the action menu.
-- **Focus Attention Agent** jumps to a blocked agent, then a finished one. Its root-search subtitle shows how many agents need attention and refreshes about once a minute after the command's first use. Assign it a global hotkey for quick access.
-- **Agent Status** shows agents needing attention in the menu bar and notifies you when they become blocked or finish.
+- **Dashboard:** Browse workspaces, tabs, and panes.
+- **Manage Agents:** Start, prompt, and manage agents.
+- **Focus Attention Agent:** See attention counts in search and jump to an agent that needs you.
+- **Agent Status:** Get menu bar status and alerts when agents need you.
 
-Raycast stores your last 50 sent prompts and caches recent output and session details locally.
+| Dashboard shortcut | Action                       |
+| ------------------ | ---------------------------- |
+| Enter              | Open a group or focus a pane |
+| ⌘↵                 | Focus any item in Herdr      |
+| ⌘⇧D                | Toggle details               |
+| ⌘O                 | Show live output             |
+
+Stored locally: your last 50 sent prompts, recent output, and session details.
 
 ## Development
 
