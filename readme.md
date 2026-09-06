@@ -2,20 +2,15 @@
 
 > Browse and control [Herdr](https://herdr.dev) agent sessions from Raycast.
 
-![Herdr Dashboard showing workspaces, panes, and agent status](docs/dashboard.png)
+![Herdr Dashboard showing workspaces, panes, and agent status](media/dashboard.png)
 
-Requires macOS, Raycast 2.2 or newer, and Herdr 0.7.5 or newer. Install Node.js 22.22.2 or newer for setup.
+Requires macOS, Raycast 2.2 or newer, and [Herdr](https://herdr.dev) 0.7.5 or newer.
 
 ## Setup
 
-```sh
-git clone https://github.com/terkelg/herdr-raycast.git
-cd herdr-raycast
-npm install
-npm run dev
-```
+Start Herdr in a terminal, then open **Dashboard** or **Manage Agents** in Raycast. Keep Herdr running; the extension finds default and named local sessions automatically.
 
-Keep Herdr running. The extension finds default and named local sessions automatically.
+Set **Terminal App** in the extension preferences only if you want to override automatic terminal detection.
 
 ## Usage
 
@@ -24,11 +19,18 @@ Keep Herdr running. The extension finds default and named local sessions automat
 - **Focus Attention Agent** jumps to a blocked agent, then a finished one. Its root-search subtitle shows how many agents need attention and refreshes about once a minute after the command's first use. Assign it a global hotkey for quick access.
 - **Agent Status** shows agents needing attention in the menu bar and notifies you when they become blocked or finish.
 
-Set **Terminal App** in the extension preferences only if you want to override automatic terminal detection.
-
 Raycast stores your last 50 sent prompts and caches recent output and session details locally.
 
-## Contributing
+## Development
+
+Install Node.js 22.22.2 or newer, then run:
+
+```sh
+git clone https://github.com/terkelg/herdr-raycast.git
+cd herdr-raycast
+npm ci
+npm run dev
+```
 
 Run `npm run lint` and `npm run build` before submitting changes.
 
