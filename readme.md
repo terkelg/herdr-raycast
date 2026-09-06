@@ -2,6 +2,8 @@
 
 > Browse and control [Herdr](https://herdr.dev) agent sessions from Raycast.
 
+![Herdr Dashboard showing workspaces, panes, and agent status](docs/dashboard.png)
+
 Requires macOS, Raycast 2.2 or newer, and Herdr 0.7.5 or newer. Install Node.js 22.22.2 or newer for setup.
 
 ## Setup

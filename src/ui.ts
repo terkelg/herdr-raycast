@@ -32,7 +32,7 @@ export function flat(snaps: Snapshot[]): Entry[] {
 }
 
 const BADGES: Record<Status, { source: string; tintColor: Color }> = {
-  working: { source: Icon.CircleProgress, tintColor: Color.Blue },
+  working: { source: "working.svg", tintColor: Color.Blue },
   blocked: { source: Icon.ExclamationMark, tintColor: Color.Red },
   done: { source: Icon.CheckCircle, tintColor: Color.Green },
   idle: { source: "idle.svg", tintColor: Color.SecondaryText },
