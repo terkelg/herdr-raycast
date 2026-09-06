@@ -13,13 +13,11 @@ import type { Entry } from "./ui";
 const store = new Cache();
 const run = promisify(execFile);
 
-/** Shows a macOS notification. */
 function notify(subtitle: string, message: string): Promise<unknown> {
   const script = `display notification ${JSON.stringify(message)} with title "Herdr" subtitle ${JSON.stringify(subtitle)}`;
   return run("osascript", ["-e", script]).catch(() => undefined);
 }
 
-/** Notifies once per agent that newly turned blocked or done since the last refresh. */
 async function alert(entries: Entry[]): Promise<void> {
   const now = entries.filter((e) => e.state === "blocked" || e.state === "done");
   const keys = now.map((e) => `${e.server.session}:${target(e.agent)}:${e.state}`);
@@ -36,7 +34,6 @@ async function alert(entries: Entry[]): Promise<void> {
   }
 }
 
-/** Focuses the agent inside Herdr, then activates the terminal app. */
 async function jump(entry: Entry): Promise<void> {
   try {
     await focus(entry.server, entry.agent);
@@ -46,7 +43,6 @@ async function jump(entry: Entry): Promise<void> {
   }
 }
 
-/** Opens the Browse Agents command. */
 async function browse(): Promise<void> {
   try {
     await launchCommand({ name: "agents", type: LaunchType.UserInitiated });
@@ -74,7 +70,6 @@ function Group({ title, entries, full }: { title: string; entries: Entry[]; full
   );
 }
 
-/** Menu bar command surfacing blocked and finished Herdr agents. */
 export default function Command() {
   const { data, error, isLoading } = useCachedPromise(overview, [], { keepPreviousData: true });
 

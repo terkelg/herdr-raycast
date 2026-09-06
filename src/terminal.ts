@@ -13,20 +13,22 @@ const run = promisify(execFile);
  */
 async function detect(): Promise<string | undefined> {
   try {
-    const { stdout } = await run("ps", ["-axo", "pid=,ppid=,comm="]);
-    const rows = new Map<number, { ppid: number; comm: string }>();
+    const { stdout } = await run("ps", ["-axo", "uid=,pid=,ppid=,comm="]);
+    const uid = process.getuid?.();
+    const rows = new Map<number, { uid: number; ppid: number; comm: string }>();
     for (const line of stdout.split("\n")) {
-      const m = line.match(/^\s*(\d+)\s+(\d+)\s+(.*)$/);
-      if (m) rows.set(+m[1], { ppid: +m[2], comm: m[3] });
+      const m = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/);
+      // macOS login can run as root between the user's shell and terminal app.
+      if (m && (+m[1] === uid || +m[1] === 0)) rows.set(+m[2], { uid: +m[1], ppid: +m[3], comm: m[4] });
     }
     for (const [pid, row] of rows) {
-      if (row.comm !== "herdr" && !row.comm.endsWith("/herdr")) continue;
+      if (row.uid !== uid || (row.comm !== "herdr" && !row.comm.endsWith("/herdr"))) continue;
       let cursor: number | undefined = pid;
       for (let hop = 0; cursor && cursor > 1 && hop < 15; hop++) {
         const step = rows.get(cursor);
         if (!step) break;
         const at = step.comm.indexOf(".app/Contents/MacOS");
-        if (at >= 0) return step.comm.slice(0, at + 4);
+        if (at >= 0 && step.uid === uid) return step.comm.slice(0, at + 4);
         cursor = step.ppid;
       }
     }
@@ -36,7 +38,6 @@ async function detect(): Promise<string | undefined> {
   return undefined;
 }
 
-/** Activates the terminal app: the preference when set, otherwise the detected host of herdr. */
 export async function activate(): Promise<void> {
   const { terminal } = getPreferenceValues<{ terminal?: Application }>();
   const path = terminal?.path || (await detect());

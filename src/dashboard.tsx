@@ -26,13 +26,10 @@ import { activate } from "./terminal";
 import { badge, dot, flat, logo, name } from "./ui";
 import type { Agent } from "./types";
 
-/** Target kinds the socket API can focus, rename, and close. */
 type Kind = "workspace" | "tab" | "pane";
 
-/** Display noun for a row; Agent rows act on their pane and skip rename and close. */
 type Noun = "Workspace" | "Tab" | "Pane" | "Agent";
 
-/** One dashboard row: list chrome plus the server target its actions control. */
 interface Row {
   server: Server;
   kind: Kind;
@@ -47,18 +44,15 @@ interface Row {
   keywords: string[];
 }
 
-/** Close-confirmation warning per kind. */
 const WARNINGS: Record<Kind, string> = {
   workspace: "All its tabs and panes will be closed.",
   tab: "All its panes will be closed, terminating whatever runs inside them.",
   pane: "Whatever runs inside it will be terminated.",
 };
 
-/** Dashboard command: browse workspaces, tabs, panes, and agents across every Herdr server. */
 export default function Command() {
   const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
   const [show, setShow] = useState("everything");
-  /** True when the dropdown filter keeps a section visible. */
   const on = (key: string) => show === "everything" || show === key;
   return (
     <List
@@ -92,7 +86,6 @@ export default function Command() {
   );
 }
 
-/** Workspace rows across all servers, tagging non-default sessions in the title. */
 function spaces(snaps: Snapshot[]): Row[] {
   // Cached snapshots persisted by older extension versions may lack newer fields.
   return snaps.flatMap(({ server, workspaces }) =>
@@ -118,7 +111,6 @@ function spaces(snaps: Snapshot[]): Row[] {
   );
 }
 
-/** Tab rows resolving each tab's workspace label for the subtitle. */
 function tabs(snaps: Snapshot[]): Row[] {
   return snaps.flatMap(({ server, workspaces, tabs }) =>
     (tabs || []).map((tab): Row => {
@@ -142,7 +134,6 @@ function tabs(snaps: Snapshot[]): Row[] {
   );
 }
 
-/** Pane rows titled by agent kind or working directory, placed by workspace and tab. */
 function panes(snaps: Snapshot[]): Row[] {
   return snaps.flatMap(({ server, workspaces, tabs, panes }) =>
     (panes || []).map((pane): Row => {
@@ -170,7 +161,6 @@ function panes(snaps: Snapshot[]): Row[] {
   );
 }
 
-/** Agent rows from every server, focusable through their pane. */
 function agents(snaps: Snapshot[]): Row[] {
   return flat(snaps).map(({ server, agent, state, where, tab }): Row => {
     const title = name(agent);
@@ -192,19 +182,16 @@ function agents(snaps: Snapshot[]): Row[] {
   });
 }
 
-/** Pluralizes a count, e.g. "1 tab", "3 tabs". */
 function tally(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
-/** Trailing accessories for workspace, tab, and pane rows: status dot plus a Focused tag. */
 function marks(state: string | undefined, focused: boolean | undefined): List.Item.Accessory[] {
   const out: List.Item.Accessory[] = [{ icon: dot(state), tooltip: state }];
   if (focused) out.push({ tag: "Focused" });
   return out;
 }
 
-/** One dashboard section, hidden entirely when it has no rows. */
 function Block({ title, rows, revalidate }: { title: string; rows: Row[]; revalidate: () => void }) {
   if (!rows.length) return null;
   return (
@@ -224,12 +211,10 @@ function Block({ title, rows, revalidate }: { title: string; rows: Row[]; revali
   );
 }
 
-/** Shared actions for one row: focus, rename, copy, close, refresh, and preferences. */
 function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
   const { server, kind, noun, id, label } = row;
   const full = noun !== "Agent";
 
-  /** Focuses the target inside Herdr, activates the terminal app, and closes Raycast. */
   async function act(): Promise<void> {
     try {
       if (row.agent) await focus(server, row.agent);
@@ -241,7 +226,6 @@ function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
     }
   }
 
-  /** Asks for confirmation, closes the target, and refreshes the list. */
   async function shut(): Promise<void> {
     const ok = await confirmAlert({
       title: `Close ${kind} ${label}?`,
@@ -290,7 +274,6 @@ function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
   );
 }
 
-/** Form that renames the row's workspace, tab, or pane label and pops back. */
 function RenameForm({ row }: { row: Row }) {
   const { server, kind, noun, id, label } = row;
   const { pop } = useNavigation();

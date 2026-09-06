@@ -28,13 +28,11 @@ import { badge, flat, logo, name, status, tokens } from "./ui";
 import type { Entry } from "./ui";
 import type { Agent, Read, Status } from "./types";
 
-/** Sort weight per status, most urgent first. */
 const URGENCY: Record<Status, number> = { blocked: 0, done: 1, working: 2, idle: 3, unknown: 4 };
 
 /** Dropdown value prefix marking a kind filter rather than a status bucket. */
 const KIND = "kind:";
 
-/** Manage command: every Herdr agent in one flat list, refreshed every few seconds. */
 export default function Command() {
   const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
   const [filter, setFilter] = useState("all");
@@ -85,12 +83,10 @@ export default function Command() {
   );
 }
 
-/** Orders entries by status urgency, then display name. */
 function rank(a: Entry, b: Entry): number {
   return URGENCY[a.state] - URGENCY[b.state] || name(a.agent).localeCompare(name(b.agent));
 }
 
-/** Applies the dropdown filter: everything, a status bucket, or an agent kind. */
 function sift(entries: Entry[], filter: string): Entry[] {
   if (filter === "all") return entries;
   if (filter === "attention") return entries.filter((e) => e.state === "blocked" || e.state === "done");
@@ -98,7 +94,6 @@ function sift(entries: Entry[], filter: string): Entry[] {
   return entries.filter((e) => e.state === filter);
 }
 
-/** Search bar dropdown filtering by status bucket or by the agent kinds present. */
 function Filter({ entries, pick }: { entries: Entry[]; pick: (value: string) => void }) {
   const kinds = [...new Set(entries.map((e) => e.agent.agent).filter((k): k is string => !!k))].sort();
   return (
@@ -120,7 +115,6 @@ function Filter({ entries, pick }: { entries: Entry[]; pick: (value: string) => 
   );
 }
 
-/** One agent row with its location breadcrumb, status accessories, and actions. */
 function Item({ entry, revalidate }: { entry: Entry; revalidate: () => void }) {
   const { agent, state, where, tab } = entry;
   const crumb = [where, tab].filter(Boolean).join(" › ");
@@ -147,7 +141,6 @@ function Item({ entry, revalidate }: { entry: Entry; revalidate: () => void }) {
   );
 }
 
-/** Primary action: focus the agent's pane in Herdr and switch to the terminal app. */
 function Jump({ entry }: { entry: Entry }) {
   const { terminal } = getPreferenceValues<{ terminal?: Application }>();
   return (
@@ -159,7 +152,6 @@ function Jump({ entry }: { entry: Entry }) {
   );
 }
 
-/** Secondary actions shared by agent rows and the output detail. */
 function More({ entry, revalidate }: { entry: Entry; revalidate: () => void }) {
   const { server, agent } = entry;
   const pane = agent.pane_id;
@@ -211,7 +203,6 @@ function More({ entry, revalidate }: { entry: Entry; revalidate: () => void }) {
   );
 }
 
-/** Focuses the agent inside Herdr, activates the terminal app, and closes Raycast. */
 async function jump(server: Server, agent: Agent): Promise<void> {
   try {
     await focus(server, agent);
@@ -222,7 +213,6 @@ async function jump(server: Server, agent: Agent): Promise<void> {
   }
 }
 
-/** Confirms and closes a pane, terminating the agent running in it. */
 async function shut(server: Server, pane: string): Promise<void> {
   const ok = await confirmAlert({
     title: `Close pane ${pane}?`,
@@ -238,7 +228,6 @@ async function shut(server: Server, pane: string): Promise<void> {
   }
 }
 
-/** Live pane output for one agent, refreshed every couple of seconds. */
 function OutputDetail({ entry }: { entry: Entry }) {
   const { server, agent, state, where, tab } = entry;
   const pane = agent.pane_id;
@@ -277,7 +266,6 @@ function OutputDetail({ entry }: { entry: Entry }) {
   );
 }
 
-/** Renders the freshest pane text as markdown, or a friendly notice. */
 function body(pane: string | undefined, data: Read | undefined, error: Error | undefined): string {
   if (!pane) return "This agent has no pane to read.";
   if (error instanceof Offline) return "Herdr isn't running.";
@@ -294,17 +282,14 @@ function fence(text: string): string {
   return `${ticks}text\n${text}\n${ticks}`;
 }
 
-/** LocalStorage key holding sent prompts as a JSON array, newest first. */
 const HISTORY = "history";
 
-/** One remembered prompt. */
 interface Past {
   text: string;
   agent: string;
   at: number;
 }
 
-/** Loads the stored prompt history, newest first; a corrupt store reads as empty. */
 async function past(): Promise<Past[]> {
   try {
     return JSON.parse((await LocalStorage.getItem<string>(HISTORY)) || "[]");
@@ -321,7 +306,6 @@ async function record(text: string, agent: string): Promise<void> {
   await LocalStorage.setItem(HISTORY, JSON.stringify(list));
 }
 
-/** Form that sends one prompt to the agent, with clipboard paste and history recall. */
 function PromptForm({ server, agent }: { server: Server; agent: Agent }) {
   const { pop } = useNavigation();
   const { handleSubmit, itemProps, setValue, values } = useForm<{ text: string }>({
@@ -340,7 +324,6 @@ function PromptForm({ server, agent }: { server: Server; agent: Agent }) {
     },
   });
 
-  /** Appends the clipboard text to the prompt, on a new line when text is already present. */
   async function paste(): Promise<void> {
     const clip = await Clipboard.readText();
     if (clip) setValue("text", values.text ? `${values.text}\n${clip}` : clip);
@@ -373,7 +356,6 @@ function PromptForm({ server, agent }: { server: Server; agent: Agent }) {
   );
 }
 
-/** Recently sent prompts; selecting one hands its text back to the prompt form. */
 function History({ pick }: { pick: (text: string) => void }) {
   const { pop } = useNavigation();
   const { isLoading, data } = usePromise(past);
@@ -436,7 +418,6 @@ function RenameForm({ server, agent }: { server: Server; agent: Agent }) {
   );
 }
 
-/** Server diagnostics explaining how the agent's state was detected. */
 function ExplainDetail({ server, agent }: { server: Server; agent: Agent }) {
   const { isLoading, data, error } = usePromise(explain, [server, agent]);
   let md = `${name(agent)} is **${status(agent)}**.`;
@@ -446,7 +427,6 @@ function ExplainDetail({ server, agent }: { server: Server; agent: Agent }) {
   return <Detail isLoading={isLoading} navigationTitle={`Explain ${name(agent)}`} markdown={md} />;
 }
 
-/** Form that starts a new agent in a fresh workspace or as a new tab in an existing one. */
 function StartForm({ snaps }: { snaps: Snapshot[] }) {
   const { pop } = useNavigation();
   const first = snaps[0].server;
@@ -465,7 +445,6 @@ function StartForm({ snaps }: { snaps: Snapshot[] }) {
     }
   });
 
-  /** Starts the chosen kind at the chosen spot, then pops back. */
   async function submit(values: { kind: string; dir: string[]; where: string }): Promise<void> {
     const dest = spots.get(values.where);
     try {
