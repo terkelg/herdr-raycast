@@ -18,7 +18,7 @@ Keep Herdr running. The extension finds default and named local sessions automat
 ## Usage
 
 - **Manage Agents** searches, focuses, prompts, inspects, renames, starts, and closes agents.
-- **Dashboard** browses workspaces, tabs, panes, and agents. Focus any item, or rename and close non-agent items.
+- **Dashboard** groups tabs and panes into workspace sections. Open a tab to browse its panes; single-tab workspaces show their panes directly. Search or filter by state to find panes across workspaces. Press Enter to open a group or focus a pane, or ⌘↵ to focus any item in Herdr. Rename and close non-agent items from the action menu.
 - **Focus Attention Agent** jumps to a blocked agent, then a finished one. Assign it a global hotkey for quick access.
 - **Agent Status** shows agents needing attention in the menu bar and notifies you when they become blocked or finish.
 

@@ -28,6 +28,7 @@ export interface Agent {
   pane_id?: string;
   focused?: boolean;
   cwd?: string;
+  foreground_cwd?: string;
   name?: string;
   title?: string;
   display_agent?: string;
@@ -54,6 +55,8 @@ export interface Tab {
 
 export interface Pane {
   pane_id?: string;
+  label?: string;
+  display_agent?: string;
   workspace_id?: string;
   tab_id?: string;
   focused?: boolean;

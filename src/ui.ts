@@ -31,11 +31,11 @@ export function flat(snaps: Snapshot[]): Entry[] {
   );
 }
 
-const BADGES: Record<Status, { source: Icon; tintColor: Color }> = {
+const BADGES: Record<Status, { source: string; tintColor: Color }> = {
   working: { source: Icon.CircleProgress, tintColor: Color.Blue },
   blocked: { source: Icon.ExclamationMark, tintColor: Color.Red },
   done: { source: Icon.CheckCircle, tintColor: Color.Green },
-  idle: { source: Icon.Circle, tintColor: Color.SecondaryText },
+  idle: { source: "idle.svg", tintColor: Color.SecondaryText },
   unknown: { source: Icon.QuestionMarkCircle, tintColor: Color.SecondaryText },
 };
 
@@ -57,13 +57,8 @@ export function status(agent: Agent): Status {
   return STATUSES.includes(raw) ? raw : "unknown";
 }
 
-export function badge(value: Status): { source: Icon; tintColor: Color } {
+export function badge(value: Status): { source: string; tintColor: Color } {
   return BADGES[value];
-}
-
-export function dot(raw: string | undefined): Image.ImageLike {
-  const value = raw as Status;
-  return { source: Icon.Dot, tintColor: BADGES[STATUSES.includes(value) ? value : "unknown"].tintColor };
 }
 
 export function name(agent: Agent): string {

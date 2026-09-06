@@ -1,9 +1,8 @@
-import { basename } from "node:path";
-
 import {
   Action,
   ActionPanel,
   Alert,
+  Color,
   Form,
   Icon,
   Keyboard,
@@ -20,28 +19,25 @@ import { showFailureToast, useForm } from "@raycast/utils";
 import { useState } from "react";
 
 import { close, focus, relabel, reveal } from "./client";
-import type { Server, Snapshot } from "./client";
 import { useSnaps } from "./hooks";
 import { activate } from "./terminal";
-import { badge, dot, flat, logo, name } from "./ui";
-import type { Agent } from "./types";
+import { key, prune, tree } from "./tree";
+import type { Branch } from "./tree";
+import { badge, status } from "./ui";
 
-type Kind = "workspace" | "tab" | "pane";
+type Kind = Branch["kind"];
 
 type Noun = "Workspace" | "Tab" | "Pane" | "Agent";
 
-interface Row {
-  server: Server;
-  kind: Kind;
+const NOUNS: Record<Kind, Noun> = { workspace: "Workspace", tab: "Tab", pane: "Pane" };
+const ICONS: Record<Kind, Image.ImageLike> = {
+  workspace: { source: "workspace.svg", tintColor: Color.PrimaryText },
+  tab: { source: "workspace.svg", tintColor: Color.PrimaryText },
+  pane: { source: "terminal.svg", tintColor: Color.PrimaryText },
+};
+
+interface Row extends Branch {
   noun: Noun;
-  id: string;
-  agent?: Agent;
-  label: string;
-  icon: Image.ImageLike;
-  title: string;
-  subtitle?: string;
-  accessories: List.Item.Accessory[];
-  keywords: string[];
 }
 
 const WARNINGS: Record<Kind, string> = {
@@ -52,162 +48,159 @@ const WARNINGS: Record<Kind, string> = {
 
 export default function Command() {
   const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
-  const [show, setShow] = useState("everything");
-  const on = (key: string) => show === "everything" || show === key;
+  const [show, setShow] = useState("all");
+  const [query, setQuery] = useState("");
+  const branches = prune(tree(snaps), query, show);
+  const searching = !!query.trim() || show !== "all";
+
   return (
     <List
       isLoading={isLoading}
-      searchBarPlaceholder="Search workspaces, tabs, panes, agents, paths…"
+      filtering={false}
+      searchText={query}
+      onSearchTextChange={setQuery}
+      searchBarPlaceholder="Search panes…"
       searchBarAccessory={
-        <List.Dropdown tooltip="Show" storeValue onChange={setShow}>
-          <List.Dropdown.Item title="Everything" value="everything" />
-          <List.Dropdown.Item title="Workspaces" value="workspaces" />
-          <List.Dropdown.Item title="Tabs" value="tabs" />
-          <List.Dropdown.Item title="Panes" value="panes" />
-          <List.Dropdown.Item title="Agents" value="agents" />
+        <List.Dropdown tooltip="Filter panes" storeValue onChange={setShow}>
+          <List.Dropdown.Item title="Everything" value="all" />
+          <List.Dropdown.Section title="State">
+            <List.Dropdown.Item title="Needs Attention" value="attention" />
+            <List.Dropdown.Item title="Blocked" value="blocked" />
+            <List.Dropdown.Item title="Working" value="working" />
+            <List.Dropdown.Item title="Idle" value="idle" />
+            <List.Dropdown.Item title="Done" value="done" />
+          </List.Dropdown.Section>
+          <List.Dropdown.Section title="Show">
+            <List.Dropdown.Item title="Workspaces" value="workspaces" />
+            <List.Dropdown.Item title="Tabs" value="tabs" />
+            <List.Dropdown.Item title="Panes" value="panes" />
+            <List.Dropdown.Item title="Agents" value="agents" />
+          </List.Dropdown.Section>
         </List.Dropdown>
       }
     >
       {empty ? (
         <List.EmptyView
-          icon={Icon.Terminal}
+          icon={ICONS.pane}
           title={down?.message || "Herdr isn't running"}
           description="Start herdr in a terminal to see your session."
         />
+      ) : branches.length ? (
+        branches.map((branch) => (
+          <Block key={key(branch)} branch={branch} searching={searching} show={show} revalidate={revalidate} />
+        ))
       ) : (
-        <>
-          {on("workspaces") && <Block title="Workspaces" rows={spaces(snaps)} revalidate={revalidate} />}
-          {on("tabs") && <Block title="Tabs" rows={tabs(snaps)} revalidate={revalidate} />}
-          {on("panes") && <Block title="Panes" rows={panes(snaps)} revalidate={revalidate} />}
-          {on("agents") && <Block title="Agents" rows={agents(snaps)} revalidate={revalidate} />}
-        </>
+        <List.EmptyView
+          icon={Icon.MagnifyingGlass}
+          title="No matching panes"
+          description="Try another search or state."
+        />
       )}
     </List>
   );
 }
 
-function spaces(snaps: Snapshot[]): Row[] {
-  // Cached snapshots persisted by older extension versions may lack newer fields.
-  return snaps.flatMap(({ server, workspaces }) =>
-    (workspaces || []).map((space): Row => {
-      const id = space.workspace_id || "";
-      const label = space.label || id;
-      const { session } = server;
-      return {
-        server,
-        kind: "workspace",
-        noun: "Workspace",
-        id,
-        label,
-        icon: Icon.Folder,
-        title: session === "default" ? label : `${label} · ${session}`,
-        accessories: [
-          { text: `${tally(space.tab_count || 0, "tab")} · ${tally(space.pane_count || 0, "pane")}` },
-          ...marks(space.agent_status, space.focused),
-        ],
-        keywords: [label, id, session].filter(Boolean),
-      };
-    }),
-  );
-}
+/** Native workspace sections; searching opens the groups to show matching panes. */
+function Block({
+  branch,
+  searching,
+  show,
+  revalidate,
+}: {
+  branch: Branch;
+  searching: boolean;
+  show: string;
+  revalidate: () => void;
+}) {
+  if (show === "workspaces" || !branch.children.length) return <Item branch={branch} revalidate={revalidate} />;
 
-function tabs(snaps: Snapshot[]): Row[] {
-  return snaps.flatMap(({ server, workspaces, tabs }) =>
-    (tabs || []).map((tab): Row => {
-      const id = tab.tab_id || "";
-      const label = tab.label || id;
-      const space =
-        (workspaces || []).find((w) => w.workspace_id === tab.workspace_id)?.label || tab.workspace_id || "";
-      return {
-        server,
-        kind: "tab",
-        noun: "Tab",
-        id,
-        label,
-        icon: Icon.AppWindowGrid3x3,
-        title: label,
-        subtitle: [space, id].filter(Boolean).join(" · "),
-        accessories: [{ text: tally(tab.pane_count || 0, "pane") }, ...marks(tab.agent_status, tab.focused)],
-        keywords: [label, id, space].filter(Boolean),
-      };
-    }),
-  );
-}
+  const session = branch.server.session === "default" ? "" : branch.server.session;
+  const title = [branch.label, session].filter(Boolean).join(" · ");
+  if (show === "tabs" || (!searching && !branch.inline))
+    return (
+      <List.Section title={title} subtitle={tally(branch.count)}>
+        {branch.children.map((tab) => (
+          <Item key={key(tab)} branch={tab} revalidate={revalidate} />
+        ))}
+      </List.Section>
+    );
 
-function panes(snaps: Snapshot[]): Row[] {
-  return snaps.flatMap(({ server, workspaces, tabs, panes }) =>
-    (panes || []).map((pane): Row => {
-      const { agent } = pane;
-      const id = pane.pane_id || "";
-      const path = pane.foreground_cwd || pane.cwd || "";
-      const space =
-        (workspaces || []).find((w) => w.workspace_id === pane.workspace_id)?.label || pane.workspace_id || "";
-      const tab = (tabs || []).find((t) => t.tab_id === pane.tab_id)?.label || pane.tab_id || "";
-      const title = agent || (path && basename(path)) || id;
-      const extra: List.Item.Accessory[] = agent ? [{ icon: logo({ agent }) }] : [];
-      return {
-        server,
-        kind: "pane",
-        noun: "Pane",
-        id,
-        label: title,
-        icon: Icon.Terminal,
-        title,
-        subtitle: [space, tab].filter(Boolean).join(" › "),
-        accessories: [...extra, ...marks(pane.agent_status, pane.focused)],
-        keywords: [id, pane.cwd, agent, space, tab].filter((w): w is string => !!w),
-      };
-    }),
-  );
-}
-
-function agents(snaps: Snapshot[]): Row[] {
-  return flat(snaps).map(({ server, agent, state, where, tab }): Row => {
-    const title = name(agent);
-    const extra: List.Item.Accessory[] = [{ tag: { value: state, color: badge(state).tintColor } }];
-    if (agent.focused) extra.push({ tag: "Focused" });
-    return {
-      server,
-      kind: "pane",
-      noun: "Agent",
-      id: agent.pane_id || "",
-      agent,
-      label: title,
-      icon: logo(agent),
-      title,
-      subtitle: [where, tab].filter(Boolean).join(" › "),
-      accessories: extra,
-      keywords: [title, agent.agent, where, agent.cwd].filter((w): w is string => !!w),
-    };
-  });
-}
-
-function tally(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
-}
-
-function marks(state: string | undefined, focused: boolean | undefined): List.Item.Accessory[] {
-  const out: List.Item.Accessory[] = [{ icon: dot(state), tooltip: state }];
-  if (focused) out.push({ tag: "Focused" });
-  return out;
-}
-
-function Block({ title, rows, revalidate }: { title: string; rows: Row[]; revalidate: () => void }) {
-  if (!rows.length) return null;
   return (
-    <List.Section title={title} subtitle={`${rows.length}`}>
-      {rows.map((row, i) => (
-        <List.Item
-          key={`${row.server.path}:${row.kind}:${row.id || i}`}
-          icon={row.icon}
-          title={row.title}
-          subtitle={row.subtitle}
-          accessories={row.accessories}
-          keywords={row.keywords}
-          actions={<Panel row={row} revalidate={revalidate} />}
-        />
+    <>
+      {branch.children.map((tab) => (
+        <List.Section
+          key={key(tab)}
+          title={title}
+          subtitle={[!branch.inline && tab.label, tally(tab.children.length)].filter(Boolean).join(" · ")}
+        >
+          {tab.children.length ? (
+            tab.children.map((pane) => <Item key={key(pane)} branch={pane} revalidate={revalidate} />)
+          ) : (
+            <Item branch={tab} revalidate={revalidate} />
+          )}
+        </List.Section>
       ))}
-    </List.Section>
+    </>
+  );
+}
+
+/** Raycast's navigation stack provides the next level of the hierarchy. */
+function Browse({ branch }: { branch: Branch }) {
+  const { snaps, down, empty, isLoading, revalidate } = useSnaps(3000);
+  const workspaces = tree(empty ? [] : snaps);
+  const candidates = branch.kind === "workspace" ? workspaces : workspaces.flatMap((space) => space.children);
+  const current = candidates.find((item) => key(item) === key(branch));
+  const tabs = current?.kind === "workspace" ? current.children : current ? [current] : [];
+  return (
+    <List
+      navigationTitle={branch.label}
+      isLoading={isLoading}
+      searchBarPlaceholder="Search panes…"
+      filtering={{ keepSectionOrder: true }}
+    >
+      <List.EmptyView icon={ICONS.pane} title={down?.message || "No panes to show"} />
+      {tabs.map((tab) => (
+        <List.Section key={key(tab)} title={tab.label} subtitle={tally(tab.count)}>
+          {tab.children.map((pane) => (
+            <Item key={key(pane)} branch={pane} revalidate={revalidate} />
+          ))}
+        </List.Section>
+      ))}
+    </List>
+  );
+}
+
+function tally(count = 0): string {
+  return `${count} pane${count === 1 ? "" : "s"}`;
+}
+
+function Item({ branch, revalidate }: { branch: Branch; revalidate: () => void }) {
+  const { kind, label, count, state, agent, focused, server } = branch;
+  const noun = agent ? "Agent" : NOUNS[kind];
+  const value = status({ agent_status: state });
+  const marker =
+    value === "unknown"
+      ? { source: Icon.Dot, tintColor: Color.SecondaryText }
+      : { ...badge(value), tintColor: value === "idle" ? Color.Green : badge(value).tintColor };
+  const accessories: List.Item.Accessory[] = [];
+  if (kind !== "pane") accessories.push({ text: tally(count) });
+  if (agent)
+    accessories.push(
+      { text: agent.agent || "agent" },
+      { tag: { value: value[0].toUpperCase() + value.slice(1), color: marker.tintColor } },
+    );
+  else if (kind === "pane") accessories.push({ text: "shell" });
+  if (focused) accessories.push({ tag: { value: "Focused", color: Color.Blue }, tooltip: "Focused in Herdr" });
+  return (
+    <List.Item
+      id={key(branch)}
+      icon={agent ? { value: marker, tooltip: value } : ICONS[kind]}
+      title={label}
+      subtitle={kind === "workspace" && server.session !== "default" ? server.session : undefined}
+      accessories={accessories}
+      keywords={branch.keywords}
+      actions={<Panel row={{ ...branch, noun }} revalidate={revalidate} />}
+    />
   );
 }
 
@@ -244,7 +237,15 @@ function Panel({ row, revalidate }: { row: Row; revalidate: () => void }) {
 
   return (
     <ActionPanel>
-      <Action title={`Focus ${noun}`} icon={Icon.Window} onAction={act} />
+      {kind !== "pane" && (
+        <Action.Push title={`Open ${noun}`} icon={Icon.ChevronRight} target={<Browse branch={row} />} />
+      )}
+      <Action
+        title={`Focus ${noun}`}
+        icon={Icon.Window}
+        shortcut={{ modifiers: ["cmd"], key: "return" }}
+        onAction={act}
+      />
       {full && (
         <Action.Push
           title={`Rename ${noun}`}
